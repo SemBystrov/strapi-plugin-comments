@@ -55,38 +55,61 @@ module.exports = {
   },
 
   post: async (ctx) => {
+    const user = ctx.state.user
     const { params = {} } = ctx;
     const { relation } = parseParams(params);
     const { body = {} }  = ctx.request;
+
+    const workspace = body.workspace
+    console.log(workspace)
+    delete body.workspace
+
     try {
-      const entity = await strapi.plugins.comments.services.comments.create(body, relation);
+      const entity = await strapi.plugins.comments.services.comments.create({
+        authorUser: user.id,
+        ...body
+      }, relation);
 
       if (entity) {
+        strapi.io.to(workspace).emit('new_comment', entity)
+
         return entity;
       }
     }
     catch (e) {
       throwError(ctx, e);
     }
-  }, 
+  },
 
   put: async (ctx) => {
     const { request, params = {} } = ctx;
     const { body = {} }  = request;
     const { relation, commentId } = parseParams(params);
+
+    const workspace = body.workspace
+    delete body.workspace
+
     try {
-      return await strapi.plugins.comments.services.comments.update(commentId, relation, body);
+      const entity = await strapi.plugins.comments.services.comments.update(commentId, relation, body);
+      strapi.io.to(workspace).emit('update_comment', entity)
     }
     catch (e) {
       throwError(ctx, e);
     }
-  }, 
+  },
 
   pointsUp: async (ctx) => {
-    const { params = {} } = ctx;
+    const { request, params = {} } = ctx;
+    const { body = {} }  = request;
     const { relation, commentId } = parseParams(params);
+
+    const workspace = body.workspace
+    delete body.workspace
+
     try {
-      return await strapi.plugins.comments.services.comments.pointsUp(commentId, relation);
+      const entity = await strapi.plugins.comments.services.comments.pointsUp(commentId, relation);
+      strapi.io.to(workspace).emit('like_comment', entity)
+      return entity
     }
     catch (e) {
       throwError(ctx, e);
